@@ -1,0 +1,50 @@
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+repositories {
+  mavenCentral()
+  maven {
+    url "https://repo.eclipse.org/content/groups/releases/"
+  }
+}
+
+dependencies {
+    compile 'org.eclipse.jgit:org.eclipse.jgit:5.0.3.201809091024-r'
+    compile 'org.eclipse.jgit:org.eclipse.jgit.archive:5.0.3.201809091024-r'
+    compile 'commons-io:commons-io:2.6'
+    compile 'org.slf4j:slf4j-simple:1.7.25'
+
+    // optional dependency of commons-compress which is needed by JGit
+    compile 'org.tukaani:xz:1.8'
+
+    testCompile 'junit:junit:4.12'
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '4.6'
+}
+
+apply plugin: 'checkstyle'
+checkstyle {
+    toolVersion ="8.12"
+
+}
+
+task prepareSuppress(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    main = 'org.dstadler.jgit.porcelain.DiffFilesInCommit'
+
+}
+
+task runCodeCheck(dependsOn: ['prepareSuppress', 'checkstyleMain'])
+checkstyleMain.mustRunAfter(prepareSuppress)
+
+task adjustWrapperPropertiesFile << {
+    ant.replaceregexp(match:'^#.*', replace:'', flags:'g', byline:true) {
+        fileset(dir: project.projectDir, includes: 'gradle/wrapper/gradle-wrapper.properties')
+    }
+    new File(project.projectDir, 'gradle/wrapper/gradle-wrapper.properties').with { it.text = it.readLines().findAll { it }.sort().join('\n') }
+    ant.fixcrlf(file: 'gradle/wrapper/gradle-wrapper.properties', eol: 'lf')
+}
+wrapper.finalizedBy adjustWrapperPropertiesFile
